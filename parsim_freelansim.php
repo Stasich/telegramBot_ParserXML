@@ -6,6 +6,8 @@ $dom_xml->load('https://freelansim.ru/user_rss_tasks/6Fpi1p32eMAPheTrxdyh');
 $items=$dom_xml->getElementsByTagName("item");
 $date = $items->item(0)->getElementsByTagName("pubDate");
 
+$pattern = '/(<br>)+/';
+
 $arrData = []; //
 foreach ($items as $item )
 {
@@ -19,7 +21,7 @@ foreach ($items as $item )
     $link = strip_tags(trim($link[0]->nodeValue),'<a>');
 
     $description = $item->getElementsByTagName("description");
-    $description = strip_tags(trim($description[0]->nodeValue),'<a>');
+    $description = strip_tags( preg_replace( $pattern, "\n", trim( $description[0]->nodeValue ) ),'<a>' );
     //$arrData[] = compact('date', 'title', 'link', 'description' );
     $str = "<b>" .$date . "</b>\n<b>" . $title . "</b>\n" . $description . "\n" . $link;
     $str = urlencode($str);

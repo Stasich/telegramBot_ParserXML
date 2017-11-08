@@ -6,7 +6,11 @@ $dom_xml->load('https://freelansim.ru/user_rss_tasks/6Fpi1p32eMAPheTrxdyh');
 $items=$dom_xml->getElementsByTagName("item");
 
 $patternForRegexp = '/(<br>)+/';  // шаблон для замены <br> на \n в description
-$patternForXML = ( file_exists('.lastLink') ) ? file_get_contents('.lastLink') : null;
+
+$f = fopen('.lastLink', 'r+') or die("can't read");
+$patternForXML = fgets($f);
+fclose($f);
+//$patternForXML = ( file_exists('.lastLink') ) ? file_get_contents('.lastLink') : die("Can't open file");
 
 $count = 0;
 foreach ($items as $item )
@@ -25,13 +29,6 @@ foreach ($items as $item )
 
     if ($link === $patternForXML)
     {
-        if ( $count !== 0 )
-        {
-            $link = $items->item(0)->getElementsByTagName("link")->item(0)->nodeValue;
-            $f = fopen('.lastLink', 'w');
-            fwrite($f, $link);
-            fclose($f);
-        }
         break;
     }
 
@@ -43,7 +40,8 @@ foreach ($items as $item )
 }
 
 //если файла для сравнения нет, или с не было совпадений с ним
-if ( $items->length == $count){
+if ( $count !== 0 )
+{
     $link = $items->item(0)->getElementsByTagName("link")->item(0)->nodeValue;
     $f = fopen('.lastLink', 'w');
     fwrite($f, $link);

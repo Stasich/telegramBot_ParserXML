@@ -25,8 +25,7 @@ class ParsimFreelansim
 
     private function getPatternForXML($items)
     {
-        if (!is_readable($this->lastLink)) //or die("can't read");
-        {
+        if (!is_readable($this->lastLink)) {
             if (file_exists($this->lastLink)) die ("$this->lastLink - access is denied");
             $fp = fopen( $this->lastLink, 'w') or die ("can't create/use $this->lastLink");
             $link = $items->item(1)->getElementsByTagName("link")->item(0)->nodeValue;
@@ -80,21 +79,20 @@ class ParsimFreelansim
             $newPostsInArr[] = compact('date', 'title', 'link', 'description');
         }
 
-        if ( count($newPostsInArr) > 0 )
-            $this->putPatternForXML( reset($newPostsInArr)['link'] );
+        if (count($newPostsInArr) > 0)
+            $this->putPatternForXML(reset($newPostsInArr)['link']);
         return $newPostsInArr;
     }
 
     public function sendPostsToTelegram($newPostsInArr, $token, $method, $chat_id, $options)
     {
         $postsCount = count($newPostsInArr);
-        if ( $postsCount === 0 ) return;
-        for ( $i = $postsCount - 1; $i >= 0; $i-- )
-        {
-        $str = "<b>" . $newPostsInArr[$i]['date'] . "</b>\n<b>" .
-            $newPostsInArr[$i]['title'] . "</b>\n" .
-            $newPostsInArr[$i]['description'] . "\n" .
-            $newPostsInArr[$i]['link'];
+        if ($postsCount === 0) return;
+        for ($i = $postsCount - 1; $i >= 0; $i--) {
+            $str = "<b>" . $newPostsInArr[$i]['date'] . "</b>\n<b>" .
+                $newPostsInArr[$i]['title'] . "</b>\n" .
+                $newPostsInArr[$i]['description'] . "\n" .
+                $newPostsInArr[$i]['link'];
         $str = urlencode($str);
         $query = "https://api.telegram.org/bot$token/$method?chat_id=$chat_id&$options&text=$str";
         file($query);
@@ -103,13 +101,11 @@ class ParsimFreelansim
     public function sendPostsToTerminal($newPostsInArr)
     {
         $postsCount = count($newPostsInArr);
-        if ( $postsCount === 0 )
-        {
+        if ($postsCount === 0) {
             echo "Новых постов нет\n";
             return;
         }
-        for ( $i = $postsCount - 1; $i >= 0; $i-- )
-        {
+        for ($i = $postsCount - 1; $i >= 0; $i--) {
             $str = "\n" . $newPostsInArr[$i]['date'] . "\n" .
                 $newPostsInArr[$i]['title'] . "\n" .
                 $newPostsInArr[$i]['description'] . "\n" .

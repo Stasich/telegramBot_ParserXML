@@ -1,8 +1,14 @@
 <?php
+
+namespace Classes;
+
+use Classes\Database\TableLinks;
+
 class ParsimFreelansim
 {
     private static $parser = null;
     private $lastLink = '.lastLink';
+    private $link_for_parse = 'https://freelansim.ru/user_rss_tasks/6Fpi1p32eMAPheTrxdyh';
 
     private function __construct()
     {
@@ -16,6 +22,9 @@ class ParsimFreelansim
     {
     }
 
+	/**
+	 * @return ParsimFreelansim
+	 */
     static function getParser()
     {
         if (is_null(self::$parser))
@@ -23,10 +32,16 @@ class ParsimFreelansim
         return self::$parser;
     }
 
+	/**
+	 * @param \DOMNodeList $items
+	 * @return bool|string
+	 */
     private function getPatternForXML($items)
     {
         if (!is_readable($this->lastLink)) {
-            if (file_exists($this->lastLink)) die ("$this->lastLink - access is denied");
+            if (file_exists($this->lastLink)) {
+                die ("$this->lastLink - access is denied");
+            }
             $fp = fopen( $this->lastLink, 'w') or die ("can't create/use $this->lastLink");
             $link = $items->item(1)->getElementsByTagName("link")->item(0)->nodeValue;
             fwrite($fp, $link);
@@ -37,6 +52,7 @@ class ParsimFreelansim
         fclose($f);
         return $patternForXML;
     }
+
     private function putPatternForXML($link)
     {
         $f = fopen($this->lastLink, 'w') or die ("can't put link in $this->lastLink");
@@ -44,10 +60,13 @@ class ParsimFreelansim
         fclose($f);
     }
 
+	/**
+	 * @return \DOMNodeList
+	 */
     private function getXmlItems()
     {
-        $dom_xml = new DomDocument(2.0, 'UTF-8');
-        $dom_xml->load('https://freelansim.ru/user_rss_tasks/6Fpi1p32eMAPheTrxdyh');
+        $dom_xml = new \DomDocument(2.0, 'UTF-8');
+        $dom_xml->load($this->link_for_parse);
         $items = $dom_xml->getElementsByTagName("item");
         return $items;
     }
@@ -57,9 +76,12 @@ class ParsimFreelansim
         $items = $this->getXmlItems();
 
         $patternForRegexp = '/(<br>)+/';  // шаблон для замены <br> на \n в description
-        $patternForXML = $this->getPatternForXML($items);
+
+        $tableLinks = TableLinks::getInstance();
+        $patternForXML = $tableLinks->getLinks();
 
         $newPostsInArr = [];
+        $viewed_links = [];
 
         foreach ($items as $item) {
             $date = $item->getElementsByTagName("pubDate");
@@ -74,13 +96,17 @@ class ParsimFreelansim
             $description = $item->getElementsByTagName("description");
             $description = strip_tags(preg_replace($patternForRegexp, "\n", trim($description[0]->nodeValue)), '<a>');
 
-            if ($link === $patternForXML)
+            if (array_key_exists($link, $patternForXML)) {
                 break;
+            }
+            $viewed_links[] = $link;
+
             $newPostsInArr[] = compact('date', 'title', 'link', 'description');
         }
 
-        if (count($newPostsInArr) > 0)
-            $this->putPatternForXML(reset($newPostsInArr)['link']);
+        if (count($newPostsInArr) > 0) {
+            $tableLinks->addViewedLinksToDb($viewed_links);
+        }
         return $newPostsInArr;
     }
 

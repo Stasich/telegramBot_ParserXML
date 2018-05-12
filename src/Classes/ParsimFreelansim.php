@@ -7,8 +7,8 @@ use Classes\Database\TableLinks;
 class ParsimFreelansim
 {
     private static $parser = null;
-    private $lastLink = '.lastLink';
-    private $link_for_parse = 'https://freelansim.ru/user_rss_tasks/6Fpi1p32eMAPheTrxdyh';
+    private $prefix;
+    private $link_for_parse;
 
     private function __construct()
     {
@@ -22,9 +22,9 @@ class ParsimFreelansim
     {
     }
 
-	/**
-	 * @return ParsimFreelansim
-	 */
+    /**
+     * @return ParsimFreelansim
+     */
     static function getParser()
     {
         if (is_null(self::$parser))
@@ -32,32 +32,36 @@ class ParsimFreelansim
         return self::$parser;
     }
 
-	/**
-	 * @param \DOMNodeList $items
-	 * @return bool|string
-	 */
-    private function getPatternForXML($items)
-    {
-        if (!is_readable($this->lastLink)) {
-            if (file_exists($this->lastLink)) {
-                die ("$this->lastLink - access is denied");
-            }
-            $fp = fopen( $this->lastLink, 'w') or die ("can't create/use $this->lastLink");
-            $link = $items->item(1)->getElementsByTagName("link")->item(0)->nodeValue;
-            fwrite($fp, $link);
-            fclose($fp);
-        }
-        $f = fopen($this->lastLink, 'r');
-        $patternForXML = fgets($f);
-        fclose($f);
-        return $patternForXML;
+    /**
+     * @param array $service
+     */
+    public function setConfig($service) {
+        $this->prefix = $service['prefix'];
+        $this->link_for_parse = $service['link'];
     }
 
-    private function putPatternForXML($link)
-    {
-        $f = fopen($this->lastLink, 'w') or die ("can't put link in $this->lastLink");
-        fwrite($f, $link );
-        fclose($f);
+    private function curlLoad($url) {
+        $cookie = tmpfile();
+        $userAgent = 'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.64 Safari/537.31' ;
+
+        $ch = curl_init($url);
+
+        $options = array(
+            CURLOPT_CONNECTTIMEOUT => 20 ,
+            CURLOPT_USERAGENT => $userAgent,
+            CURLOPT_AUTOREFERER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_COOKIEFILE => $cookie,
+            CURLOPT_COOKIEJAR => $cookie ,
+            CURLOPT_SSL_VERIFYPEER => 0 ,
+            CURLOPT_SSL_VERIFYHOST => 0
+        );
+
+        curl_setopt_array($ch, $options);
+        $kl = curl_exec($ch);
+        curl_close($ch);
+        return $kl;
     }
 
 	/**
@@ -66,11 +70,14 @@ class ParsimFreelansim
     private function getXmlItems()
     {
         $dom_xml = new \DomDocument(2.0, 'UTF-8');
-        $dom_xml->load($this->link_for_parse);
+        $dom_xml->loadXML($this->curlLoad($this->link_for_parse));
         $items = $dom_xml->getElementsByTagName("item");
         return $items;
     }
 
+    /**
+     * @return array
+     */
     public function getNewPostsInArr()
     {
         $items = $this->getXmlItems();
@@ -78,7 +85,7 @@ class ParsimFreelansim
         $patternForRegexp = '/(<br>)+/';  // шаблон для замены <br> на \n в description
 
         $tableLinks = TableLinks::getInstance();
-        $patternForXML = $tableLinks->getLinks();
+        $patternForXML = $tableLinks->getLinks($this->prefix);
 
         $newPostsInArr = [];
         $viewed_links = [];
@@ -105,7 +112,7 @@ class ParsimFreelansim
         }
 
         if (count($newPostsInArr) > 0) {
-            $tableLinks->addViewedLinksToDb($viewed_links);
+            $tableLinks->addViewedLinksToDb($viewed_links, $this->prefix);
         }
         return $newPostsInArr;
     }

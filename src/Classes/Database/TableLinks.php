@@ -8,18 +8,20 @@
 
 namespace Classes\Database;
 
-use Classes\Database\DbConnection;
 use PDO;
 
 class TableLinks {
     private static $instance = NULL;
 
     private $pdo;
+    private $rows_limit = 100;
 
     private function __construct()
     {
         $this->pdo = DbConnection::getConnection();
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS links (id INTEGER PRIMARY KEY AUTOINCREMENT, link TEXT)');
+        $this->pdo->exec(
+            'CREATE TABLE IF NOT EXISTS links (id INTEGER PRIMARY KEY AUTOINCREMENT, link TEXT, service_id INTEGER)'
+        );
     }
 
     private function __clone()
@@ -42,10 +44,12 @@ class TableLinks {
     }
 
     /**
+     * @param string $prefix
      * @return array
      */
-    public function getLinks() {
-        $query = 'SELECT link, id FROM links ORDER BY id DESC LIMIT 50';
+    public function getLinks($prefix) {
+        $service_id = TableServices::getInstance()->getServiceIdByPrefix($prefix);
+        $query = "SELECT link, id FROM links where service_id = $service_id ORDER BY id DESC LIMIT $this->rows_limit";
         $stmt = $this->pdo->query($query);
         $links_arr = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
@@ -53,18 +57,22 @@ class TableLinks {
     }
 
     /**
+     * @param string $prefix
      * @param array $viewedLinks
      */
-    public function addViewedLinksToDb($viewedLinks) {
+    public function addViewedLinksToDb($viewedLinks, $prefix) {
         if (!empty($viewedLinks)) {
-            $query = 'INSERT INTO links (link) values (:link)';
+            $service_id = TableServices::getInstance()->getServiceIdByPrefix($prefix);
+            $query = 'INSERT INTO links (link, service_id) values (:link, :service_id)';
             $stmt = $this->pdo->prepare($query);
 
             foreach ($viewedLinks as $link) {
                 $stmt->execute([
                     'link' => $link,
+                    'service_id' => $service_id,
                 ]);
             }
         }
     }
 }
+

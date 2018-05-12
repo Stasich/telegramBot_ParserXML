@@ -6,17 +6,29 @@ use Classes\Config;
 
 $debug = array_search('--debug', $argv);
 
-$parser = ParsimFreelansim::getParser();
-$newPostsInArr = $parser->getNewPostsInArr();
+try {
+    $parser = ParsimFreelansim::getParser();
+    foreach (Config::SERVICES_FOR_PARSING as $service) {
+        $parser->setConfig($service);
 
-if ($debug === FALSE) {
-    $parser->sendPostsToTelegram(
-        $newPostsInArr,
-        Config::TOKEN,
-        Config::METHOD,
-        Config::CHAT_ID,
-        Config::OPTIONS
+        $newPostsInArr = $parser->getNewPostsInArr();
+
+        if ($debug === FALSE) {
+            $parser->sendPostsToTelegram(
+                $newPostsInArr,
+                Config::TOKEN,
+                Config::METHOD,
+                Config::CHAT_ID,
+                Config::OPTIONS
+            );
+        } else {
+            $parser->sendPostsToTerminal($newPostsInArr);
+        }
+    }
+} catch (Exception $exception) {
+    file_put_contents(
+        __DIR__ . '/log/parser.log',
+        $exception->getMessage() . "\n",
+        FILE_APPEND
     );
-} else {
-    $parser->sendPostsToTerminal($newPostsInArr);
 }
